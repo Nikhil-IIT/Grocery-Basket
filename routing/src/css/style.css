@@ -1,0 +1,66 @@
+*{
+    padding: 0;
+    margin: 0;
+}
+
+.my-categories{
+    display:flex;
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+    align-items: center;
+    width:90vw;
+    margin-inline:auto;
+}
+.my-category-div{
+    width:90vw;
+    justify-content: center;
+    margin-inline:auto;
+    
+}
+.category-heading{
+    display: flex;
+    justify-content: space-between;
+    margin-top: 50px;
+}
+.my-category-row{
+    display: flex;
+    justify-content: space-between;
+    margin-inline-end: auto;
+    margin-top: 20px;
+}
+
+.nick-row{
+    
+    display: flex;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+.nick-card {
+    margin: 10px 10px 10px 10px;
+}
+
+.my-card{
+    width: 170px;
+    height: 296px;
+}
+
+.product-name{
+    overflow: hidden;
+    color: rgb(31, 31, 31);
+    font-weight: 600;
+    font-size: 13px;
+    width: 100%;
+    margin-top: 6px;
+    margin-bottom: 6px;
+}
+
+.product-weight{
+    color: #666666;
+    font-size: 14px;
+}
+
+.my-categories {
+    width: 90vw;
+}
