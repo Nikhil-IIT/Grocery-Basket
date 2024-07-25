@@ -1,4 +1,4 @@
-from flask import Flask,Response,jsonify,render_template, request, session, redirect ,url_for ,flash, get_flashed_messages
+from flask import Flask, Response, jsonify, render_template, request, session, redirect, url_for, flash, get_flashed_messages
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from flask_mail import Mail
@@ -8,17 +8,16 @@ import io
 import re
 import math
 from datetime import datetime
-from flask_login import LoginManager,UserMixin 
-from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
+from flask_login import LoginManager, UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
-from wtforms.validators import InputRequired,EqualTo, Email, Length, ValidationError,DataRequired
+from wtforms.validators import InputRequired, EqualTo, Email, Length, ValidationError, DataRequired
 from flask_bcrypt import Bcrypt
 import random
-import sqlite3 
+import pymysql
 import numpy as np
 import matplotlib.pyplot as plt
-from flask_cors import CORS,cross_origin
+from flask_cors import CORS, cross_origin
 from sqlalchemy.exc import SQLAlchemyError
 import csv
 from sqlalchemy import DateTime, and_
@@ -28,7 +27,7 @@ import workers
 import redis
 from flask_caching import Cache
 from flask import Flask, current_app
-from config import LocalDevementConfig
+
 cache = Cache()
 
 app = Flask(__name__)
@@ -41,7 +40,7 @@ login_manager = LoginManager(app)
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 app.secret_key = '8f42a73054b1749f8f58848be5e6502c'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://username:password@localhost/database_name'  # Update URI for MySQL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 celery = None
@@ -87,10 +86,7 @@ def load_user(user_id):
 def load_user(sm_id):
     return Store_managers.query.get(int(sm_id))
 
-with sqlite3.connect("database.db") as con:
-    cur = con.cursor()
-
-class Users(db.Model,UserMixin):
+class Users(db.Model, UserMixin):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -98,46 +94,45 @@ class Users(db.Model,UserMixin):
     password = db.Column(db.String(120), nullable=False)
     last_visited = db.Column(db.DateTime, default=datetime.utcnow)
 
-class Store_managers(db.Model,UserMixin):
+class Store_managers(db.Model, UserMixin):
     __tablename__ = 'store_managers'
-    id = db.Column(db.Integer, primary_key=True,unique=True)
+    id = db.Column(db.Integer, primary_key=True, unique=True)
     sm_username = db.Column(db.String(80), unique=True, nullable=False)
     sm_email = db.Column(db.String(80), unique=True, nullable=False)
     sm_password = db.Column(db.String(120), nullable=False)
-    approved=db.Column(db.Integer, nullable=False)
-    
+    approved = db.Column(db.Integer, nullable=False)
+
 class Products(db.Model):
     __tablename__ = 'grocery'
-    product_id = db.Column(db.Integer, primary_key=True,unique=True)
-    name = db.Column(db.String(80),nullable=False)
+    product_id = db.Column(db.Integer, primary_key=True, unique=True)
+    name = db.Column(db.String(80), nullable=False)
     quantity = db.Column(db.String(80), nullable=False)
     price = db.Column(db.Integer, nullable=False)
-    category=db.Column(db.String(80), nullable=False)
-    image=db.Column(db.String(500), nullable=False)
-    sm_id=db.Column(db.Integer, nullable=False)
-    stock=db.Column(db.Integer, nullable=False)
-    
+    category = db.Column(db.String(80), nullable=False)
+    image = db.Column(db.String(500), nullable=False)
+    sm_id = db.Column(db.Integer, nullable=False)
+    stock = db.Column(db.Integer, nullable=False)
+
 class Orders(db.Model):
     __tablename__ = 'orders'
-    order_id=db.Column(db.Integer, primary_key=True,unique=True)
-    username=db.Column(db.Integer,nullable=False)
-    product_name = db.Column(db.String(80),nullable=False)
-    no_of_items= db.Column(db.Integer,nullable=False)
-    product_id = db.Column(db.Integer,nullable=False)
-    
+    order_id = db.Column(db.Integer, primary_key=True, unique=True)
+    username = db.Column(db.Integer, nullable=False)
+    product_name = db.Column(db.String(80), nullable=False)
+    no_of_items = db.Column(db.Integer, nullable=False)
+    product_id = db.Column(db.Integer, nullable=False)
+
 class Category(db.Model):
     __tablename__ = 'category'
-    c_id = db.Column(db.Integer, primary_key=True,unique=True)
-    c_name = db.Column(db.String(80),nullable=False)
+    c_id = db.Column(db.Integer, primary_key=True, unique=True)
+    c_name = db.Column(db.String(80), nullable=False)
 
 class Requests(db.Model):
     __tablename__ = 'requests'
-    r_id = db.Column(db.Integer, primary_key=True,unique=True)
-    r_name = db.Column(db.String(80),nullable=False)
+    r_id = db.Column(db.Integer, primary_key=True, unique=True)
+    r_name = db.Column(db.String(80), nullable=False)
 
 with app.app_context():
     db.create_all()
-
 @app.route('/signup', methods=['POST'])
 def signup():
     try:
@@ -270,28 +265,28 @@ def logout():
 def protected():
     return jsonify({'message': 'This is a protected route'})
 
-@app.route('/generate_csv/<int:sm_id>', methods=['GET','POST'])
-def generate_csv(sm_id):
-    print(sm_id)
-    with sqlite3.connect("database.db") as con:
-        cur = con.cursor()
-        cur.execute("SELECT product_id,name,quantity,price,category,image FROM grocery where sm_id=?", (sm_id,))
-        data = cur.fetchall()
+# @app.route('/generate_csv/<int:sm_id>', methods=['GET','POST'])
+# def generate_csv(sm_id):
+#     print(sm_id)
+#     with sqlite3.connect("database.db") as con:
+#         cur = con.cursor()
+#         cur.execute("SELECT product_id,name,quantity,price,category,image FROM grocery where sm_id=?", (sm_id,))
+#         data = cur.fetchall()
 
-    con.close()
+#     con.close()
 
-    output = io.StringIO()
-    csv_writer = csv.writer(output)
+#     output = io.StringIO()
+#     csv_writer = csv.writer(output)
 
-    csv_writer.writerow(['product_id', 'name','quantity','price','category','image'])
+#     csv_writer.writerow(['product_id', 'name','quantity','price','category','image'])
 
-    for row in data:
-        csv_writer.writerow(row)
+#     for row in data:
+#         csv_writer.writerow(row)
 
-    output.seek(0)
+#     output.seek(0)
 
-    return Response(output, mimetype='text/csv',
-                    headers={'Content-Disposition': 'attachment; filename=data.csv'})
+#     return Response(output, mimetype='text/csv',
+#                     headers={'Content-Disposition': 'attachment; filename=data.csv'})
 
 @app.route("/",methods=['GET','POST'])
 def go():
@@ -572,6 +567,7 @@ def cart(u_id):
 @cache.cached(timeout=6000)
 def search_product(prodt):
     query=prodt
+    print("internal here")
     if query:
         results = Products.query.filter(Products.name.ilike(f'%{query}%')).all()
 
